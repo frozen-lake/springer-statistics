@@ -12,18 +12,20 @@ A run is one experiment under one spec. It plays a saved, ordered list of openin
 - Time control is set per run. The default is 10+0.1.
 - Runs are started manually.
 - Each run has one run ID, from its spec. Every game records its stage, `aa` or `ab`.
+- An opening ID is the list ID and the 1-based line number, joined by a colon: `<list_id>:<line>`. For example, line 17 of `freq-2026-09-k2000-p16-f1024` is `freq-2026-09-k2000-p16-f1024:17`. Each game stores its full opening ID.
 
 ### Run spec
 
 A run is started from one TOML spec, and it has its own run ID. Specs are committed under `runs/`. Only one run executes at a time. Starting a run while another is active is refused.
 
 ```toml
+run_id = "<unique run ID>"
 mode = "stockfish"               # "stockfish" or "head-to-head". Sets who plays whom in every game of the run.
 time_control = "10+0.1"
 harness = "v1.8.2-alpha"         # fastchess version. Must match the version in the image.
 openings_per_job = 32            # J. N and the A/A count must be multiples of J.
 concurrency_per_job = 8          # games in flight per job, split evenly across the job's matches. Each game uses 2 vCPUs, so 8 fills a 16-vCPU instance.
-max_instances = 2               # concurrent instances. 2 × 16 = 32 vCPUs, the current quota.
+max_instances = 2               # concurrent instances. 2 × 16 = 32 vCPUs. The operator checks this against the quota.
 instance_type = "c6i.4xlarge"
 region = "us-east-1"
 
@@ -67,6 +69,7 @@ The submission CLI is `submit_run.py`. It is a Python command that starts a run 
 - Reads the spec with `tomllib` and checks it against the acceptance criteria. If a check fails, nothing is started.
 - Converts the spec to JSON and starts the Step Functions execution with `aws stepfunctions start-execution`, called through `subprocess`.
 - Needs an active AWS session. The operator runs `aws login` first. The CLI checks the session with `aws sts get-caller-identity` and stops with a clear message if there is none.
+- Refuses to start while Step Functions reports a running execution (`aws stepfunctions list-executions --status-filter RUNNING`). Step Functions is the source of truth for the one-run-at-a-time rule.
 - Requires Python 3.14.
 
 The loading CLI, which puts results into MySQL, is deferred.
@@ -75,13 +78,15 @@ The loading CLI, which puts results into MySQL, is deferred.
 
 A job plays J openings on one instance. With `stockfish`, the instance runs two matches at once, one for baseline and one for candidate, each with half of `concurrency_per_job` games in flight. The job ends when both finish, and baseline and candidate are paired by opening ID afterward. With `head-to-head`, the instance runs one match, the candidate against the baseline, with all of `concurrency_per_job` games in flight. Either way, the job uses all vCPUs of the instance.
 
+A job runs fastchess with `-pgnout` set to record nodes, nps, and latency. It then converts that PGN into the JSON Lines file described under Storage.
+
 A job writes its results only when it finishes, so a job can be discarded and rerun without leaving partial data. This keeps Spot instances possible later.
 
 ### Container
 
 - The toolchain image holds gcc (to compile Springer), fastchess (the runner), and Stockfish. It's stored in Amazon ECR, a private AWS image registry.
 - The base image, fastchess, and Stockfish are pinned: the base image by digest, and fastchess and Stockfish by the SHA-256 of their downloads. Stockfish is `sf_19`.
-- Each job fetches the commit named in the spec and compiles it inside the container. The compile flags are fixed in the image.
+- Each job fetches the commit named in the spec and runs `make uci` inside the container. The compile flags come from that commit's Makefile. The image fixes the compiler.
 - Jobs start from AWS Batch's default image, with no custom AMI. The toolchain image is pulled from ECR at job start.
 - Each job records the SHA-256 of each compiled binary.
 
@@ -91,7 +96,7 @@ A match is one invocation of the tool. With `stockfish`, it is one engine under 
 
 The runner is fastchess, version `v1.8.2-alpha`. It is pinned in the container image and recorded in the spec's `harness` field.
 
-With `stockfish`, the two matches in a job are not synchronized, so at any moment they may be on different openings. The tool uses some CPU of its own. `-show-latency` reports each engine's latency, which shows how much of that overhead falls on each one.
+With `stockfish`, the two matches in a job are not synchronized, so at any moment they may be on different openings. The tool uses some CPU of its own. Latency is recorded per move with `-pgnout latency=true`, which shows how much of that overhead falls on each engine.
 
 
 ## Recorded per run
@@ -103,15 +108,16 @@ With `stockfish`, the two matches in a job are not synchronized, so at any momen
 - Mode (`stockfish` or `head-to-head`).
 - Stockfish version, Elo, and settings, for `stockfish` runs only.
 - Time control, harness version, openings per job (J), and concurrency per job.
-- For each game: stage, opening, color, engine, result, plies, and how it ended.
+- For each game: stage, opening ID, color, engine, result, plies, and how it ended.
 - For each game and engine: total nodes and average nodes per second.
-- For each engine in each job: latency mean and maximum from `-show-latency`.
+- For each engine in each job: latency mean and maximum, computed from the per-move latency in the PGN.
 - For each job: seconds from instance start to the first game, split into image pull and Springer compile.
 - SHA-256 checksum of the full per-game data.
 
 ## Storage
 
-- Per-game data goes to an S3 bucket with versioning on. Each job writes once, at the end, under the run's path, in one folder per stage (`aa`, `ab`).
+- Per-game data goes to an S3 bucket with versioning on. Each job writes once, at the end, one JSON Lines file per stage at `runs/<run_id>/<stage>/<job_id>.jsonl`. Each line is one game. The last line is the job summary: instance type, region, AMI, image digest, CPU model, timings, binary SHA-256, and per-engine latency mean and maximum.
+- Run-level metadata has two files under `runs/<run_id>/`. `spec.json` is written at submission, with the spec, resolved commit hashes, list ID, harness version, start time, and Step Functions execution ARN. `status.json` is written at the end, including after a failure, with the status, end time, crash reason, jobs that never started, and the SHA-256 of each job file.
 - The aggregation step loads the run into a local MySQL database. MySQL data is not committed.
 - Job logs go to CloudWatch Logs and are kept for 30 days.
 
@@ -128,10 +134,13 @@ The tool rejects a spec when:
 - `mode` is `stockfish` and `[stockfish]` is missing, or `mode` is `head-to-head` and `[stockfish]` is present.
 - `openings_per_job` does not divide N, or does not divide the A/A count when it is nonzero.
 - N or the A/A count is larger than the saved list, or the A/A count is larger than N.
-- `concurrency_per_job` × 2 does not equal the vCPUs of `instance_type`, so each job uses the whole instance.
 - `mode` is `stockfish` and `concurrency_per_job` is odd, so it cannot split evenly across the two matches.
-- `max_instances` × the vCPUs of `instance_type` is larger than the On-Demand vCPU quota.
 - Stockfish `threads` is not 1 (`stockfish` runs only).
+
+The operator checks these by hand before a run. The tool does not read the instance's vCPU count or the quota:
+
+- `concurrency_per_job` × 2 equals the vCPUs of `instance_type`, so each job uses the whole instance.
+- `max_instances` × those vCPUs is within the On-Demand vCPU quota in the chosen region.
 
 The tool:
 
