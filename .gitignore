@@ -1,14 +1,2 @@
-# Engine binaries
-*.exe
-
-# Polyglot opening books
-*.bin
-
-# Lichess databases and game files
-*.pgn
-*.pgn.zst
-*.pgn.bz2
-
-# Local data and run outputs
+# Lichess downloads and temporary databases
 data/
-results/
