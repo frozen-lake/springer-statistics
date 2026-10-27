@@ -4,8 +4,8 @@ Plan for the opening list that [Matches](matches.md) plays from. Not yet built. 
 
 ## Source
 
-- **Lichess open database** of rated standard games, at [database.lichess.org](https://database.lichess.org/). The CC0 1.0 text is in [lichess-org/files](https://github.com/lichess-org/files/blob/lichess/LICENSE), which Lichess links for its data. Confirm that the database page names CC0 before the first build.
-- One monthly PGN file per frequency list. The first list uses September 2026. The month is a setting in `parse_lichess_games.py`. Record its file name and SHA-256.
+- **Lichess open database** of rated standard games, at [database.lichess.org](https://database.lichess.org/). The CC0 1.0 text is in [lichess-org/files](https://github.com/lichess-org/files/blob/lichess/LICENSE), which Lichess links for its data. Checked: the download page states that database exports are released under CC0.
+- One monthly PGN file per frequency list. The first list uses September 2026. The month is set with `--month` on `parse_lichess_games.py`. Record its file name and SHA-256.
 
 ## Build (proposed)
 
@@ -34,12 +34,12 @@ Shuffling means the first 64 and first 512 lines that runs use are a random samp
 
 | Parameter | Value | Status |
 |-----------|-------|--------|
-| `K`, minimum rating of both players | 2000 | Decided |
-| `P`, plies per line | 16 | Decided |
-| `F`, lines in the frequency list | 1024 | Decided for now |
-| Source month | September 2026 (configurable in `parse_lichess_games.py`) | Decided |
+| `K`, minimum rating of both players (`--k`) | 2000 | Decided |
+| `P`, plies per line (`--p`) | 16 | Decided |
+| `F`, lines in the frequency list (`--f`) | 1024 | Decided for now |
+| Source month (`--month`) | September 2026 | Decided |
 | Time controls | Blitz and Rapid | Decided |
-| Shuffled list size `M` | 512 for the first shuffle | Decided |
+| Shuffled list size `M` (`--m`) | 512 for the first shuffle | Decided |
 | Commit the lists to the repo | Yes, in `openings/` (`.gitignore` exception added) | Decided |
 
 There is no minimum-count rule. The `F` most common lines are kept, and the build records the count of the `F`th line. A very small count there means the month is too thin for that `K`.
@@ -54,13 +54,13 @@ Both scripts live in `openings/`, next to the lists they write. Each is a standa
 
 **`parse_lichess_games.py`** builds the frequency list.
 
-- Input: the monthly file `lichess_db_standard_rated_<YYYY-MM>.pgn.zst`, read from `data/` (ignored by git). Confirm the exact name on the download page.
-- Eligible game: `Event` header contains "Rated Blitz game" or "Rated Rapid game" (confirm the exact text on a real file), `WhiteElo` and `BlackElo` are both at least `K`, and the game has at least `P` plies. Missing Elo or `?` means not eligible.
+- Input: the monthly file `lichess_db_standard_rated_<YYYY-MM>.pgn.zst`, read from `data/` (ignored by git). The URL `https://database.lichess.org/standard/lichess_db_standard_rated_<YYYY-MM>.pgn.zst` worked for 2026-09.
+- Eligible game: `Event` header contains "Rated Blitz game" or "Rated Rapid game" (confirmed on a 2,000-game sample of the 2026-09 file; tournament games, with headers such as "Rated Blitz tournament <url>", do not match and are excluded by decision), `WhiteElo` and `BlackElo` are both at least `K`, and the game has at least `P` plies. Missing Elo or `?` means not eligible.
 - Move text: skip `{...}` comments (including `[%clock]` and `[%eval]`), nested `( ... )` variations, `$n` NAG codes, move numbers, and results. Strip `+`, `#`, `!`, and `?` from each SAN token.
 - Line key: the first `P` SAN tokens joined by single spaces. Count games per key. Keep the `F` highest counts, and break ties by ascending key.
 - Output: `openings/<list_id>.pgn`, with lines in frequency order. Each line is one game containing only the `P` moves. The format must be read correctly by `fastchess -openings format=pgn plies=P`, and the build checks this on the fixture.
 - Refuse to overwrite an existing list. Fail if fewer than `F` lines qualify.
-- Source month and `K`, `P`, `F` are set by command-line arguments, with the values above as defaults.
+- Source month, `K`, `P`, and `F` are set by command-line arguments (`--month`, `--k`, `--p`, `--f`), with the values above as defaults.
 
 **`shuffle_openings_list.py`** builds the shuffled list.
 
@@ -78,28 +78,22 @@ Both scripts live in `openings/`, next to the lists they write. Each is a standa
 - Parsing uses only the standard library.
 - Command-line arguments (decided):
   - `parse_lichess_games.py`: `--month YYYY-MM` (default `2026-09`), `--k` (default `2000`), `--p` (default `16`), `--f` (default `1024`). Output goes to `openings/`.
-  - `shuffle_openings_list.py`: `--freq <ID>` (required, full or numeric), `--seed <int>` (required, no default), `--m` (default `512`). Output goes to `openings/`.
+  - `shuffle_openings_list.py`: `--freq <ID>` (required, full frequency ID), `--seed <int>` (required, no default), `--m` (default `512`). Output goes to `openings/`.
   - Neither script has a `--force` flag. An existing list is never overwritten.
 
 ## List IDs
 
-Each list has a full ID, which is readable, and a numeric ID, which encodes the same fields in fixed-width digits. The fixed-width scheme is decided. Both name the same list. Scripts accept either form.
+Each list's ID is built from its parameters, and its file name is the ID plus `.pgn`. Each script builds the ID with a format string. There are no numeric IDs and no range checks.
 
 **Frequency lists**
 
-- Full ID: `freq-2026-09-k2000-p16-f1024`. This is also the file name, `openings/freq-2026-09-k2000-p16-f1024.pgn`.
-- Numeric ID: `YYYYMM` (6 digits), then `K` (4 digits), `P` (2 digits), `F` (4 digits). The example is `2026092000161024`.
-- Ranges: year 2013–9999, month 01–12, `K` 1000–9999, `P` 01–99, `F` 0001–9999. Values outside these ranges are rejected, so every full ID maps to exactly one numeric ID and back.
-- The numeric ID is decoded by slicing: characters 1–6 are the month, 7–10 are `K`, 11–12 are `P`, and 13–16 are `F`.
-- Time controls are not encoded. Frequency lists are Blitz and Rapid only. A list with other time controls needs a different prefix.
+- ID: `freq-<YYYY>-<MM>-k<K>-p<P>-f<F>`. The example is `freq-2026-09-k2000-p16-f1024`, with file name `openings/freq-2026-09-k2000-p16-f1024.pgn`.
+- Frequency lists are Blitz and Rapid only. A list with other time controls needs a different prefix.
 
 **Shuffled lists**
 
-- Full ID: `shuf-<numeric frequency ID>-seed<seed>-m<M>`. The example is `shuf-2026092000161024-seed42-m512`, with file name `openings/shuf-2026092000161024-seed42-m512.pgn`.
-- The frequency part always uses the numeric ID, so the shuffled ID stays short.
-- The seed and `M` are written as plain numbers.
-
-A round-trip test checks that every valid full ID encodes and decodes to the same fields, and that out-of-range values are rejected.
+- ID: `shuf-<frequency ID>-seed<seed>-m<M>`. The example is `shuf-freq-2026-09-k2000-p16-f1024-seed42-m512`, with file name `openings/shuf-freq-2026-09-k2000-p16-f1024-seed42-m512.pgn`.
+- `--freq` takes the full frequency ID only.
 
 ## Reproducibility
 
