@@ -40,7 +40,7 @@ Shuffling means the first 64 and first 512 lines that runs use are a random samp
 | Source month (`--month`) | September 2026 | Decided |
 | Time controls | Blitz and Rapid | Decided |
 | Shuffled list size `M` (`--m`) | 512 for the first shuffle | Decided |
-| Commit the lists to the repo | Yes, in `openings/` (`.gitignore` exception added) | Decided |
+| Commit the lists to the repo | Yes, in `openings/` (nothing in `.gitignore` excludes them) | Decided |
 
 There is no minimum-count rule. The `F` most common lines are kept, and the build records the count of the `F`th line. A very small count there means the month is too thin for that `K`.
 
@@ -58,7 +58,7 @@ Both scripts live in `openings/`, next to the lists they write. Each is a standa
 - Eligible game: `Event` header contains "Rated Blitz game" or "Rated Rapid game" (confirmed on a 2,000-game sample of the 2026-09 file; tournament games, with headers such as "Rated Blitz tournament <url>", do not match and are excluded by decision), `WhiteElo` and `BlackElo` are both at least `K`, and the game has at least `P` plies. Missing Elo or `?` means not eligible.
 - Move text: skip `{...}` comments (including `[%clock]` and `[%eval]`), nested `( ... )` variations, `$n` NAG codes, move numbers, and results. Strip `+`, `#`, `!`, and `?` from each SAN token.
 - Line key: the first `P` SAN tokens joined by single spaces. Count games per key. Keep the `F` highest counts, and break ties by ascending key.
-- Output: `openings/<list_id>.pgn`, with lines in frequency order. Each line is one game containing only the `P` moves. The format must be read correctly by `fastchess -openings format=pgn plies=P`, and the build checks this on the fixture.
+- Output: `openings/<list_id>.pgn`, with lines in frequency order. Each line is one game containing only the `P` moves. The format is meant to be read by `fastchess -openings format=pgn plies=P`. The agent cannot run fastchess, so the maintainer checks this locally.
 - Refuse to overwrite an existing list. Fail if fewer than `F` lines qualify.
 - Source month, `K`, `P`, and `F` are set by command-line arguments (`--month`, `--k`, `--p`, `--f`), with the values above as defaults.
 
