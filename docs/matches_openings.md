@@ -16,7 +16,7 @@ This produces the frequency list. It is immutable: once written, it is never cha
 3. Read the first `P` moves as SAN tokens, skipping comments, variations, move numbers, and results. The moves are not replayed, so no chess library is needed.
 4. Count how many games reached each `P`-move line. Counting uses a temporary SQLite database in `data/`, which is deleted after a successful build. Counts are exact, and memory stays bounded.
 5. Keep the `F` most common lines. Break ties by the move text, so the result is the same on every build.
-6. Write the lines in frequency order, most common first, as a PGN file. fastchess reads this with `format=pgn`.
+6. Write the lines in frequency order, most common first, as a PGN file. Each line is one complete game: an `[Event "?"]` header, the `P` moves with move numbers, and `*` as the result, for example `[Event "?"] 1. e4 e5 2. Nf3 Nc6 *`. fastchess 1.8.2 rejects games without a header.
 7. Record the metadata listed under Reproducibility.
 
 ## Shuffled list (proposed)
@@ -58,7 +58,7 @@ Both scripts live in `openings/`, next to the lists they write. Each is a standa
 - Eligible game: `Event` header contains "Rated Blitz game" or "Rated Rapid game" (confirmed on a 2,000-game sample of the 2026-09 file; tournament games, with headers such as "Rated Blitz tournament <url>", do not match and are excluded by decision), `WhiteElo` and `BlackElo` are both at least `K`, and the game has at least `P` plies. Missing Elo or `?` means not eligible.
 - Move text: skip `{...}` comments (including `[%clock]` and `[%eval]`), nested `( ... )` variations, `$n` NAG codes, move numbers, and results. Strip `+`, `#`, `!`, and `?` from each SAN token.
 - Line key: the first `P` SAN tokens joined by single spaces. Count games per key. Keep the `F` highest counts, and break ties by ascending key.
-- Output: `openings/<list_id>.pgn`, with lines in frequency order. Each line is one game containing only the `P` moves. The format is meant to be read by `fastchess -openings format=pgn plies=P`. The agent cannot run fastchess, so the maintainer checks this locally.
+- Output: `openings/<list_id>.pgn`, with lines in frequency order. Each line is one complete game: an `[Event "?"]` header, the `P` moves with move numbers, and `*` as the result. The format is meant to be read by `fastchess -openings format=pgn plies=P`. The agent cannot run fastchess, so the maintainer checks this locally.
 - Refuse to overwrite an existing list. Fail if fewer than `F` lines qualify.
 - Source month, `K`, `P`, and `F` are set by command-line arguments (`--month`, `--k`, `--p`, `--f`), with the values above as defaults.
 
