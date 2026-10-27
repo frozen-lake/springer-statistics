@@ -176,10 +176,17 @@ def count_games(path, k, p, db):
     cur = db.cursor()
     cur.execute("CREATE TABLE lines (key TEXT PRIMARY KEY, count INTEGER NOT NULL)")
     kept = 0
+    total = os.path.getsize(path)
+    reported = 0
     with open(path, "rb") as raw:
         with zstd.ZstdFile(raw, "rb") as fobj:
             text = io.TextIOWrapper(fobj, encoding="utf-8", errors="replace")
             for headers, movetext in iter_games(text):
+                # Percent of the compressed file read so far, printed once per 1%.
+                percent = raw.tell() * 100 // total
+                while reported < percent:
+                    reported += 1
+                    print(f"{reported}% of compressed bytes read", file=sys.stderr, flush=True)
                 if not headers:
                     continue
                 if not event_eligible(headers.get("Event", "")):
