@@ -1,2 +1,5 @@
 # Lichess downloads and temporary databases
 data/
+
+# Python bytecode cache
+__pycache__/
