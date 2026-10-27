@@ -61,9 +61,11 @@ class ExtractMovesTests(unittest.TestCase):
 
     def test_strips_san_suffixes(self):
         # Check, mate, and annotation marks are stripped; "+", "#", "!", "?".
+        # Limit must reach past Bc4+ to cover all four stripped suffixes.
         text = "1. e4 e5 2. Qh5 Nc6 3. Bc4+ Nf6?? 4. Qxf7# 1-0"
         self.assertEqual(
-            P.extract_moves(text, 5), ["e4", "e5", "Qh5", "Nc6", "Bc4"]
+            P.extract_moves(text, 7),
+            ["e4", "e5", "Qh5", "Nc6", "Bc4", "Nf6", "Qxf7"],
         )
 
     def test_stops_at_limit(self):
@@ -106,6 +108,15 @@ class ListIdTests(unittest.TestCase):
         )
 
 
+class FormatGameTests(unittest.TestCase):
+    def test_matches_documented_example(self):
+        # docs/matches_openings.md gives this exact example line.
+        self.assertEqual(
+            P.format_game("e4 e5 Nf3 Nc6"),
+            '[Event "?"] 1. e4 e5 2. Nf3 Nc6 *',
+        )
+
+
 class BuildTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -135,27 +146,34 @@ class BuildTests(unittest.TestCase):
         #   count 2: "d4 d5 c4 e6"
         #   count 1 tie: "c4 e5 Nc3 Nf6" < "d4 Nf6 c4 g6" by ascending key,
         #     so the c4 line is kept and the d4 Nf6 line is dropped at F=3.
+        # Each line is formatted per docs/matches_openings.md: an
+        # [Event "?"] header, numbered moves, and "*" as the result.
         lid = self.build(f=3)
         pgn = os.path.join(self.out_dir, lid + ".pgn")
         with open(pgn, "r", encoding="utf-8") as fobj:
             lines = fobj.read().splitlines()
         self.assertEqual(
             lines,
-            ["e4 e5 Nf3 Nc6", "d4 d5 c4 e6", "c4 e5 Nc3 Nf6"],
+            [
+                '[Event "?"] 1. e4 e5 2. Nf3 Nc6 *',
+                '[Event "?"] 1. d4 d5 2. c4 e6 *',
+                '[Event "?"] 1. c4 e5 2. Nc3 Nf6 *',
+            ],
         )
 
     def test_output_format_one_game_per_line_p_moves_only(self):
-        # Documented layout: one game per line, only the first P moves, no
-        # comments, results, or move numbers. Hand-written expected lines.
+        # Documented layout: one complete game per line, an [Event "?"]
+        # header, only the first P moves with move numbers, and "*" as the
+        # result. Hand-written expected lines.
         lid = self.build(p=4, f=3)
         with open(os.path.join(self.out_dir, lid + ".pgn"), encoding="utf-8") as fobj:
             content = fobj.read()
         self.assertEqual(
             content,
-            "e4 e5 Nf3 Nc6\n" "d4 d5 c4 e6\n" "c4 e5 Nc3 Nf6\n",
+            '[Event "?"] 1. e4 e5 2. Nf3 Nc6 *\n'
+            '[Event "?"] 1. d4 d5 2. c4 e6 *\n'
+            '[Event "?"] 1. c4 e5 2. Nc3 Nf6 *\n',
         )
-        for line in content.splitlines():
-            self.assertEqual(len(line.split(" ")), 4)
 
     def test_metadata_counts(self):
         # games_kept and distinct_lines_seen from the hand count; fth_line_count
@@ -182,11 +200,43 @@ class BuildTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.build(f=5)
 
+    def test_temp_database_removed_after_f_failure(self):
+        lid = P.list_id(self.month, 2000, 4, 5)
+        with self.assertRaises(ValueError):
+            self.build(f=5)
+        self.assertFalse(
+            os.path.exists(os.path.join(self.data_dir, lid + ".sqlite"))
+        )
+
     def test_temp_database_removed_after_success(self):
         lid = self.build(f=3)
         self.assertFalse(
             os.path.exists(os.path.join(self.data_dir, lid + ".sqlite"))
         )
+
+
+class MainCliValidationTests(unittest.TestCase):
+    """--month, --k, --p, --f are rejected before any work starts."""
+
+    def test_rejects_bad_month_format(self):
+        with self.assertRaises(SystemExit):
+            P.main(["--month", "2026-9"])
+
+    def test_rejects_month_out_of_range(self):
+        with self.assertRaises(SystemExit):
+            P.main(["--month", "2026-13"])
+
+    def test_rejects_zero_k(self):
+        with self.assertRaises(SystemExit):
+            P.main(["--k", "0"])
+
+    def test_rejects_negative_p(self):
+        with self.assertRaises(SystemExit):
+            P.main(["--p", "-1"])
+
+    def test_rejects_zero_f(self):
+        with self.assertRaises(SystemExit):
+            P.main(["--f", "0"])
 
 
 if __name__ == "__main__":

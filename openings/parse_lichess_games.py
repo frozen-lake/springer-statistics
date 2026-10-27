@@ -6,6 +6,7 @@ See docs/matches_openings.md for the full specification.
 
 import argparse
 import hashlib
+import io
 import json
 import os
 import re
@@ -22,9 +23,11 @@ TIME_CONTROLS = ("Blitz", "Rapid")
 # games (e.g. "Rated Blitz tournament <url>") do not contain these and are excluded.
 ELIGIBLE_EVENTS = ("Rated Blitz game", "Rated Rapid game")
 
-# A SAN token after stripping check/mate/annotation marks and move numbers.
+# PGN result markers, recognized so they are skipped rather than read as moves.
 RESULTS = ("1-0", "0-1", "1/2-1/2", "*")
 SUFFIX_CHARS = str.maketrans("", "", "+#!?")
+
+MONTH_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 
 
 def list_id(month, k, p, f):
@@ -33,6 +36,21 @@ def list_id(month, k, p, f):
     month is YYYY-MM; the ID keeps the hyphen as YYYY-MM.
     """
     return f"freq-{month}-k{k}-p{p}-f{f}"
+
+
+def format_game(key):
+    """Format a space-joined move key as one complete fastchess-readable game.
+
+    docs/matches_openings.md: an `[Event "?"]` header, the moves with move
+    numbers, and `*` as the result, e.g. `[Event "?"] 1. e4 e5 2. Nf3 Nc6 *`.
+    """
+    moves = key.split(" ")
+    numbered = []
+    for i, move in enumerate(moves):
+        if i % 2 == 0:
+            numbered.append(f"{i // 2 + 1}.")
+        numbered.append(move)
+    return '[Event "?"] ' + " ".join(numbered) + " *"
 
 
 def parse_elo(value):
@@ -160,8 +178,6 @@ def count_games(path, k, p, db):
     kept = 0
     with open(path, "rb") as raw:
         with zstd.ZstdFile(raw, "rb") as fobj:
-            import io
-
             text = io.TextIOWrapper(fobj, encoding="utf-8", errors="replace")
             for headers, movetext in iter_games(text):
                 if not headers:
@@ -231,6 +247,8 @@ def build(month, k, p, f, data_dir, out_dir, source_path=None):
         cur.execute("SELECT COUNT(*) FROM lines")
         distinct = cur.fetchone()[0]
         if distinct < f:
+            db.close()
+            os.remove(db_path)
             raise ValueError(
                 f"only {distinct} lines qualified, need {f}"
             )
@@ -241,7 +259,7 @@ def build(month, k, p, f, data_dir, out_dir, source_path=None):
     os.makedirs(out_dir, exist_ok=True)
     with open(pgn_path, "w", encoding="utf-8") as fobj:
         for key, _count in rows:
-            fobj.write(key + "\n")
+            fobj.write(format_game(key) + "\n")
 
     metadata = {
         "list_id": lid,
@@ -274,11 +292,25 @@ def main(argv=None):
     parser.add_argument("--f", type=int, default=1024)
     args = parser.parse_args(argv)
 
+    if not MONTH_RE.match(args.month):
+        parser.error(f"--month must be YYYY-MM with month 01-12, got {args.month!r}")
+    if args.k < 1:
+        parser.error("--k must be at least 1")
+    if args.p < 1:
+        parser.error("--p must be at least 1")
+    if args.f < 1:
+        parser.error("--f must be at least 1")
+
     repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     data_dir = os.path.join(repo_root, "data")
     out_dir = os.path.join(repo_root, "openings")
-    lid = build(args.month, args.k, args.p, args.f, data_dir, out_dir)
+    try:
+        lid = build(args.month, args.k, args.p, args.f, data_dir, out_dir)
+    except (FileExistsError, FileNotFoundError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
     print(f"wrote {lid}")
+    return 0
 
 
 if __name__ == "__main__":

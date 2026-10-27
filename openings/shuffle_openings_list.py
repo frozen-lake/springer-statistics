@@ -73,10 +73,18 @@ def main(argv=None):
     parser.add_argument("--m", type=int, default=512)
     args = parser.parse_args(argv)
 
+    if args.m < 1:
+        parser.error("--m must be at least 1")
+
     repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     out_dir = os.path.join(repo_root, "openings")
-    lid = build(args.freq, args.seed, args.m, out_dir)
+    try:
+        lid = build(args.freq, args.seed, args.m, out_dir)
+    except (FileExistsError, FileNotFoundError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
     print(f"wrote {lid}")
+    return 0
 
 
 if __name__ == "__main__":

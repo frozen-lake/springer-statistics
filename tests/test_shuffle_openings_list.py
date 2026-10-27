@@ -102,5 +102,17 @@ class BuildTests(unittest.TestCase):
         )
 
 
+class MainCliValidationTests(unittest.TestCase):
+    """--m is rejected before any work starts."""
+
+    def test_rejects_zero_m(self):
+        with self.assertRaises(SystemExit):
+            S.main(["--freq", "freq-x", "--seed", "1", "--m", "0"])
+
+    def test_rejects_negative_m(self):
+        with self.assertRaises(SystemExit):
+            S.main(["--freq", "freq-x", "--seed", "1", "--m", "-1"])
+
+
 if __name__ == "__main__":
     unittest.main()
