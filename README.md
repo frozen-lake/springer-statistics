@@ -15,19 +15,19 @@ Early development and planning; nothing is usable yet.
 
 ### Matches
 
-Plays a baseline and a candidate build of Springer against the same strength-limited Stockfish, over the same ordered list of opening positions.
+Plays a baseline and a candidate build of Springer over the same ordered list of opening positions. Each run either plays both builds against the same strength-limited Stockfish, or plays the candidate directly against the baseline.
 
 - Openings come from rated Blitz and Rapid games in the [Lichess database](https://database.lichess.org/), which is released under CC0. The most common 16-ply lines are recorded as a frequency list, which is never changed. A random subset is then selected using a recorded seed and saved as a fixed, ordered opening list with its own ID, so that runs can be repeated.
-- Baseline and candidate each play a configurable number of games against identical Stockfish settings, from the same opening list.
+- In Stockfish runs, baseline and candidate each play a configurable number of games against identical Stockfish settings, from the same opening list. In head-to-head runs, the candidate plays the baseline directly from the same opening list.
 
 Per-run recorded data includes:
 - The hardware on which the games were run.
-- The number of concurrent games per match.
+- The number of concurrent games per job.
 - The branch name and commit hash, for both the baseline and candidate engine.
 - Timestamps for when the run began and when it finished.
 - The time control of the matches.
 - The opening list used.
-- The Stockfish Elo, version, and settings used.
+- The mode, and for Stockfish runs, the Stockfish Elo, version, and settings used.
 - The result of each game, for both the baseline and candidate engine, with the opening, game length in plies, color played, and how each game ended (checkmate, timeout, stalemate, repetition, fifty-move rule, insufficient material, crash, illegal move).
 - The total nodes searched and nodes per second for each engine in each game.
 - The latency reported for each engine (mean and maximum), which shows the overhead the tool adds to each engine's time.
