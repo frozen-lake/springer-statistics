@@ -17,7 +17,7 @@ Early development and planning; nothing is usable yet.
 
 Plays a baseline and a candidate build of Springer over the same ordered list of opening positions. Each run either plays both builds against the same strength-limited Stockfish, or plays the candidate directly against the baseline.
 
-- Openings come from rated Blitz and Rapid games in the [Lichess database](https://database.lichess.org/), which is released under CC0. The most common 16-ply lines are recorded as a frequency list, which is never changed. A random subset is then selected using a recorded seed and saved as a fixed, ordered opening list with its own ID, so that runs can be repeated.
+- Openings come from rated Blitz and Rapid games in the [Lichess database](https://database.lichess.org/), which is released under CC0. The most common 6-ply lines are recorded as a frequency list, which is never changed. The most common lines are then shuffled using a recorded seed and saved as a fixed, ordered opening list with its own ID, so that runs can be repeated.
 - In Stockfish runs, baseline and candidate each play a configurable number of games against identical Stockfish settings, from the same opening list. In head-to-head runs, the candidate plays the baseline directly from the same opening list.
 
 Per-run recorded data includes:

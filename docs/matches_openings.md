@@ -35,7 +35,7 @@ The shuffle changes only the order. The lines used are always the `M` most commo
 | Parameter | Value | Status |
 |-----------|-------|--------|
 | `K`, minimum rating of both players (`--k`) | 2000 | Decided |
-| `P`, plies per line (`--p`) | 16 | Decided |
+| `P`, plies per line (`--p`) | 6 | Decided |
 | `F`, lines in the frequency list (`--f`) | 1024 | Decided for now |
 | Source month (`--month`) | September 2026 | Decided |
 | Time controls | Blitz and Rapid | Decided |
@@ -58,7 +58,7 @@ Both scripts live in `openings/`, next to the lists they write. Each is a standa
 - Eligible game: `Event` header contains "Rated Blitz game" or "Rated Rapid game" (confirmed on a 2,000-game sample of the 2026-09 file; tournament games, with headers such as "Rated Blitz tournament <url>", do not match and are excluded by decision), `WhiteElo` and `BlackElo` are both at least `K`, and the game has at least `P` plies. Missing Elo or `?` means not eligible.
 - Move text: skip `{...}` comments (including `[%clock]` and `[%eval]`), nested `( ... )` variations, `$n` NAG codes, move numbers, and results. Strip `+`, `#`, `!`, and `?` from each SAN token.
 - Line key: the first `P` SAN tokens joined by single spaces. Count games per key. Keep the `F` highest counts, and break ties by ascending key.
-- Output: `openings/<list_id>.pgn`, with lines in frequency order. Each line is one complete game: an `[Event "?"]` header, the `P` moves with move numbers, and `*` as the result. The format is meant to be read by `fastchess -openings format=pgn plies=P`. The agent cannot run fastchess, so the maintainer checks this locally.
+- Output: `openings/<list_id>.pgn`, with lines in frequency order. Each line is one complete game: an `[Event "?"]` header, the `P` moves with move numbers, and `*` as the result. The format is meant to be read by `fastchess -openings format=pgn plies=P`, which is `plies=6` for the current list. The agent cannot run fastchess, so the maintainer checks this locally.
 - Refuse to overwrite an existing list. Fail if fewer than `F` lines qualify.
 - Source month, `K`, `P`, and `F` are set by command-line arguments (`--month`, `--k`, `--p`, `--f`), with the values above as defaults.
 
@@ -77,7 +77,7 @@ Both scripts live in `openings/`, next to the lists they write. Each is a standa
 - Python 3.14 is required for both the submission CLI and the openings scripts. The openings scripts use `compression.zstd`, and the CLI runs on the host, not in the Docker image.
 - Parsing uses only the standard library.
 - Command-line arguments (decided):
-  - `parse_lichess_games.py`: `--month YYYY-MM` (default `2026-09`), `--k` (default `2000`), `--p` (default `16`), `--f` (default `1024`). Output goes to `openings/`.
+  - `parse_lichess_games.py`: `--month YYYY-MM` (default `2026-09`), `--k` (default `2000`), `--p` (default `6`), `--f` (default `1024`). Output goes to `openings/`.
   - `shuffle_openings_list.py`: `--freq <ID>` (required, full frequency ID), `--seed <int>` (required, no default), `--m` (default `512`). Output goes to `openings/`.
   - Neither script has a `--force` flag. An existing list is never overwritten.
 
@@ -87,12 +87,12 @@ Each list's ID is built from its parameters, and its file name is the ID plus `.
 
 **Frequency lists**
 
-- ID: `freq-<YYYY>-<MM>-k<K>-p<P>-f<F>`. The example is `freq-2026-09-k2000-p16-f1024`, with file name `openings/freq-2026-09-k2000-p16-f1024.pgn`.
+- ID: `freq-<YYYY>-<MM>-k<K>-p<P>-f<F>`. The example is `freq-2026-09-k2000-p6-f1024`, with file name `openings/freq-2026-09-k2000-p6-f1024.pgn`.
 - Frequency lists are Blitz and Rapid only. A list with other time controls needs a different prefix.
 
 **Shuffled lists**
 
-- ID: `shuf-<frequency ID>-seed<seed>-m<M>`. The example is `shuf-freq-2026-09-k2000-p16-f1024-seed42-m512`, with file name `openings/shuf-freq-2026-09-k2000-p16-f1024-seed42-m512.pgn`.
+- ID: `shuf-<frequency ID>-seed<seed>-m<M>`. The example is `shuf-freq-2026-09-k2000-p6-f1024-seed42-m512`, with file name `openings/shuf-freq-2026-09-k2000-p6-f1024-seed42-m512.pgn`.
 - `--freq` takes the full frequency ID only.
 
 ## Reproducibility

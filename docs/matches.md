@@ -12,7 +12,7 @@ A run is one experiment under one spec. It plays a saved, ordered list of openin
 - Time control is set per run. The default is 10+0.1.
 - Runs are started manually.
 - Each run has one run ID, from its spec. Every game records its stage, `aa` or `ab`.
-- An opening ID is the list ID and the 1-based line number, joined by a colon: `<list_id>:<line>`. For example, line 17 of `freq-2026-09-k2000-p16-f1024` is `freq-2026-09-k2000-p16-f1024:17`. Each game stores its full opening ID.
+- An opening ID is the list ID and the 1-based line number, joined by a colon: `<list_id>:<line>`. For example, line 17 of `freq-2026-09-k2000-p6-f1024` is `freq-2026-09-k2000-p6-f1024:17`. Each game stores its full opening ID.
 
 ### Run spec
 
