@@ -1,13 +1,13 @@
 # Matches: opening list
 
-Plan for the opening list that [Matches](matches.md) plays from. Not yet built. Every value below is proposed unless marked decided.
+Specification for the opening list that [Matches](matches.md) plays from. The scripts that build it are in `openings/`. Values marked Decided are settled; the rest are proposed.
 
 ## Source
 
 - **Lichess open database** of rated standard games, at [database.lichess.org](https://database.lichess.org/). The CC0 1.0 text is in [lichess-org/files](https://github.com/lichess-org/files/blob/lichess/LICENSE), which Lichess links for its data. Checked: the download page states that database exports are released under CC0.
 - One monthly PGN file per frequency list. The first list uses September 2026. The month is set with `--month` on `parse_lichess_games.py`. Record its file name and SHA-256.
 
-## Build (proposed)
+## Build
 
 This produces the frequency list. It is immutable: once written, it is never changed.
 
@@ -19,7 +19,7 @@ This produces the frequency list. It is immutable: once written, it is never cha
 6. Write the lines in frequency order, most common first, as a PGN file. Each line is one complete game: an `[Event "?"]` header, the `P` moves with move numbers, and `*` as the result, for example `[Event "?"] 1. e4 e5 2. Nf3 Nc6 *`. fastchess 1.8.2 rejects games without a header.
 7. Record the metadata listed under Reproducibility.
 
-## Shuffled list (proposed)
+## Shuffled list
 
 A separate script makes the list that runs use. It reads one frequency list and writes a new list.
 
