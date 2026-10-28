@@ -57,6 +57,12 @@ Post-run analysis includes:
 - The baseline and candidate engines' centipawn loss in each of the positions evaluated.
 - The baseline and candidate engines' average centipawn loss across all positions evaluated.
 
+## Third-party software
+
+- [fastchess](https://github.com/Disservin/fastchess) (MIT) runs the matches. The harness version is pinned in each run spec.
+- [Stockfish](https://github.com/official-stockfish/Stockfish) (GPL v3) is the reference opponent in Stockfish runs.
+- The [Lichess open database](https://database.lichess.org/) (CC0) supplies the games for opening lists and positions.
+
 ## License
 
 Licensed under the GNU General Public License v3.0. See [LICENSE](LICENSE).
