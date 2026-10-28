@@ -1,0 +1,17 @@
+{
+  "distinct_lines_seen": 1470076,
+  "f": 2048,
+  "fth_line_count": 203,
+  "games_kept": 5345653,
+  "k": 2000,
+  "list_id": "freq-2026-09-k2000-p10-f2048",
+  "p": 10,
+  "script_version": 1,
+  "source_file_name": "lichess_db_standard_rated_2026-09.pgn.zst",
+  "source_month": "2026-09",
+  "source_sha256": "1de8eb64fed443f4be310c779e8d60a13bcfc6e3b104bcb39a018eb056edec89",
+  "time_controls": [
+    "Blitz",
+    "Rapid"
+  ]
+}
