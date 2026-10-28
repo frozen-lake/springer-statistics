@@ -31,6 +31,13 @@ class ShuffleLinesTests(unittest.TestCase):
         S.shuffle_lines(lines, 1, 5)
         self.assertEqual(lines, original)
 
+    def test_uses_only_first_m_lines(self):
+        # Expected set written by hand: the first 5 of line0..line9 in
+        # frequency order are line0..line4.
+        lines = [f"line{i}" for i in range(10)]
+        out = S.shuffle_lines(lines, 3, 5)
+        self.assertEqual(sorted(out), ["line0", "line1", "line2", "line3", "line4"])
+
 
 class BuildTests(unittest.TestCase):
     def setUp(self):

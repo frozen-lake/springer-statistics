@@ -11,7 +11,7 @@ import random
 import sys
 
 # Bump when a change would alter the output of a build.
-SCRIPT_VERSION = 1
+SCRIPT_VERSION = 2
 
 
 def list_id(freq_id, seed, m):
@@ -20,13 +20,14 @@ def list_id(freq_id, seed, m):
 
 
 def shuffle_lines(lines, seed, m):
-    """Return the first M lines of a seeded shuffle of a copy of `lines`.
+    """Return the first M lines of `lines`, shuffled with a seeded generator.
 
-    The input list is not modified.
+    `lines` is in frequency order, so these are the M most common lines. The
+    input list is not modified.
     """
-    shuffled = list(lines)
-    random.Random(seed).shuffle(shuffled)
-    return shuffled[:m]
+    top = list(lines[:m])
+    random.Random(seed).shuffle(top)
+    return top
 
 
 def build(freq_id, seed, m, out_dir):

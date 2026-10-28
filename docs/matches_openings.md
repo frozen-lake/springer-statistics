@@ -24,11 +24,11 @@ This produces the frequency list. It is immutable: once written, it is never cha
 A separate script makes the list that runs use. It reads one frequency list and writes a new list.
 
 1. Choose a seed and a size `M`.
-2. Shuffle the whole frequency list with a random generator seeded with that seed, then keep the first `M` lines in shuffled order. The frequency list is not changed.
+2. Take the first `M` lines of the frequency list, which are the `M` most common. Shuffle that set with a random generator seeded with that seed. The frequency list is not changed.
 3. Write them as a PGN file with a new list ID.
 4. Record the frequency list ID, the seed, and `M`.
 
-Shuffling means the first 64 and first 512 lines that runs use are a random sample of the frequency list, not only the most common lines.
+The shuffle changes only the order. The lines used are always the `M` most common. The first 64 and first 512 lines that runs use are a random order of those lines, so an A/A run of 64 takes 64 random lines from the top 512.
 
 ## Parameters
 
@@ -65,12 +65,12 @@ Both scripts live in `openings/`, next to the lists they write. Each is a standa
 **`shuffle_openings_list.py`** builds the shuffled list.
 
 - Input: one frequency list. Output: `openings/<list_id>.pgn`.
-- Use `random.Random(seed)`: shuffle a copy of the whole frequency list, then keep the first `M` lines in shuffled order.
+- Use `random.Random(seed)`: take the first `M` lines of the frequency list (the `M` most common), then shuffle that copy in place.
 - Fail if `M` is larger than the frequency list, or if the output already exists.
 
 **Metadata.** Each list has a JSON file next to it, `openings/<list_id>.json`, which holds the metadata listed under Reproducibility.
 
-**Tests.** Standard `unittest`. A hand-made fixture PGN with expected counts and order worked out by hand, and tests for the parser rules, eligibility, tie-breaks, shuffle determinism, and overwrite refusal. Expected counts and order must be stated in the tests with their source. Shuffle output is not checked against hand-worked values; the shuffle tests check properties instead: `M` lines, each from the frequency list with no repeats, the same seed gives the same output, and a different seed gives a different output.
+**Tests.** Standard `unittest`. A hand-made fixture PGN with expected counts and order worked out by hand, and tests for the parser rules, eligibility, tie-breaks, shuffle determinism, and overwrite refusal. Expected counts and order must be stated in the tests with their source. Shuffle output is not checked against hand-worked values; the shuffle tests check properties instead: `M` lines, each from the first `M` lines of the frequency list with no repeats, the same seed gives the same output, and a different seed gives a different output.
 
 ## Tooling
 
